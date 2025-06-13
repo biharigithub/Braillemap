@@ -1,3 +1,5 @@
+setuptools>=42
+
 Flask==2.2.5
 gunicorn==21.2.0
 pytesseract==0.3.10
