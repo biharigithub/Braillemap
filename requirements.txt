@@ -1,4 +1,7 @@
-setuptools>=42
+# Ensure build tools for modern Python packaging
+setuptools>=65
+wheel
+pip>=23
 
 Flask==2.2.5
 gunicorn==21.2.0
