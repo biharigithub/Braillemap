@@ -141,13 +141,18 @@ def text_to_braille(text, language='english'):
 def extract_text_from_image(image_path, language='eng'):
     try:
         lang_code = 'hin' if language == 'hindi' else 'eng'
-        config = f'--tessdata-dir {os.path.join(os.getcwd(), "tessdata")}'
         
-        app.logger.debug(f"Using lang={lang_code}, config={config}")
-
+        # Check if tessdata dir exists
+        tessdata_path = os.path.join(os.getcwd(), 'tessdata')
+        if os.path.exists(tessdata_path):
+            config = f'--tessdata-dir {tessdata_path}'
+        else:
+            config = ''  # Let pytesseract use system default
+        
         image = Image.open(image_path)
         if image.mode != 'RGB':
             image = image.convert('RGB')
+        
         extracted_text = pytesseract.image_to_string(image, lang=lang_code, config=config)
         return extracted_text.strip()
     except Exception as e:
