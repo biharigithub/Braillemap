@@ -266,31 +266,46 @@ class TextToBrailleConverter {
         this.mappingDisplay.innerHTML = mappingHtml;
         this.characterMapping.classList.remove('d-none');
     }
-    
     readAloud() {
-        const text = this.textInput.value.trim();
-        if (!text) return;
+    const text = this.textInput.value.trim();
+    if (!text) return;
+
+    // Stop any ongoing speech
+    this.synth.cancel();
+
+    if (typeof Android !== 'undefined' && Android.speakText) {
+        const langCode = text.match(/[^\x00-\x7F]/) ? 'hi' : 'en';  // Auto detect Hindi if needed
+        Android.speakText(text, langCode);
+
+        this.readAloudBtn.disabled = true;
+        this.readAloudBtn.innerHTML = '<i class="fas fa-stop me-2"></i>Speaking...';
         
-        // Stop any ongoing speech
-        this.synth.cancel();
-        
+        // Optional timeout to re-enable button after 5 seconds
+        setTimeout(() => {
+            this.readAloudBtn.disabled = false;
+            this.readAloudBtn.innerHTML = '<i class="fas fa-volume-up me-2"></i>Read Aloud';
+        }, 5000);
+    } else {
         const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = text.match(/[^\x00-\x7F]/) ? 'hi-IN' : 'en-US';
         utterance.rate = 0.8;
         utterance.pitch = 1;
         utterance.volume = 1;
-        
+
         utterance.onstart = () => {
             this.readAloudBtn.disabled = true;
             this.readAloudBtn.innerHTML = '<i class="fas fa-stop me-2"></i>Speaking...';
         };
-        
+
         utterance.onend = () => {
             this.readAloudBtn.disabled = false;
             this.readAloudBtn.innerHTML = '<i class="fas fa-volume-up me-2"></i>Read Aloud';
         };
-        
+
         this.synth.speak(utterance);
     }
+}
+
     
     clearAll() {
         this.textInput.value = '';
