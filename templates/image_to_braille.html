@@ -283,34 +283,47 @@ class ImageToBrailleConverter {
         this.mappingDisplay.innerHTML = mappingHtml;
     }
     
-    readExtractedText() {
-        const text = this.extractedText.textContent.trim();
-        if (!text) return;
-        
-        // Stop any ongoing speech
-        this.synth.cancel();
-        
+ readExtractedText() {
+    const text = this.extractedText.textContent.trim();
+    if (!text) return;
+
+    this.synth.cancel();
+    const language = this.getSelectedLanguage();
+
+    // ✅ Android WebView support (if Android interface is available)
+    if (typeof Android !== 'undefined' && Android.speakText) {
+        const langCode = language === 'hindi' ? 'hi' : 'en';
+        Android.speakText(text, langCode);
+
+        this.readExtractedBtn.disabled = true;
+        this.readExtractedBtn.innerHTML = '<i class="fas fa-stop me-2"></i>Speaking...';
+
+        setTimeout(() => {
+            this.readExtractedBtn.disabled = false;
+            this.readExtractedBtn.innerHTML = '<i class="fas fa-volume-up me-2"></i>Read Aloud';
+        }, 5000); // ⏳ Adjust time as needed
+    } else {
+        // ✅ For browser (SpeechSynthesis API)
         const utterance = new SpeechSynthesisUtterance(text);
-        const language = this.getSelectedLanguage();
-        
-        // Set language for speech synthesis
         utterance.lang = language === 'hindi' ? 'hi-IN' : 'en-US';
         utterance.rate = 0.8;
         utterance.pitch = 1;
         utterance.volume = 1;
-        
+
         utterance.onstart = () => {
             this.readExtractedBtn.disabled = true;
             this.readExtractedBtn.innerHTML = '<i class="fas fa-stop me-2"></i>Speaking...';
         };
-        
+
         utterance.onend = () => {
             this.readExtractedBtn.disabled = false;
             this.readExtractedBtn.innerHTML = '<i class="fas fa-volume-up me-2"></i>Read Aloud';
         };
-        
+
         this.synth.speak(utterance);
     }
+}
+
     
     showLoading() {
         this.loadingSpinner.classList.remove('d-none');
