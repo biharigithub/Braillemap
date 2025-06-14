@@ -349,6 +349,33 @@ document.head.appendChild(styleSheet);
 document.addEventListener('DOMContentLoaded', () => {
     new BrailleWorld();
 });
+function readExtractedText() {
+    const outputEl = document.getElementById("outputText"); // Make sure this ID exists in your HTML
+    if (!outputEl) {
+        alert("Output element not found.");
+        return;
+    }
+
+    const text = outputEl.textContent.trim();
+    if (!text) return;
+
+    const langSelector = document.getElementById("languageSelector");
+    const lang = langSelector ? langSelector.value : "english";
+
+    if (typeof AndroidTTS !== 'undefined') {
+        AndroidTTS.speak(text, lang); // Android WebView call
+    } else if ('speechSynthesis' in window) {
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = lang === "hindi" ? "hi-IN" : "en-US";
+        utterance.rate = 0.9;
+        utterance.pitch = 1;
+        utterance.volume = 1;
+        window.speechSynthesis.speak(utterance); // Browser fallback
+    } else {
+        alert("Text-to-speech is not supported on this device.");
+    }
+}
+
 
 // Export for use in other modules
 if (typeof module !== 'undefined' && module.exports) {
