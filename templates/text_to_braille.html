@@ -273,22 +273,24 @@ class TextToBrailleConverter {
     // Stop any ongoing speech
     this.synth.cancel();
 
-    if (typeof Android !== 'undefined' && Android.speakText) {
-        const langCode = text.match(/[^\x00-\x7F]/) ? 'hi' : 'en';  // Auto detect Hindi if needed
+    const isAndroid = typeof Android !== 'undefined' && typeof Android.speakText === 'function';
+    const langCode = text.match(/[^\x00-\x7F]/) ? 'hi' : 'en';  // Hindi detection
+
+    if (isAndroid) {
         Android.speakText(text, langCode);
 
         this.readAloudBtn.disabled = true;
         this.readAloudBtn.innerHTML = '<i class="fas fa-stop me-2"></i>Speaking...';
-        
-        // Optional timeout to re-enable button after 5 seconds
+
+        // Android doesn’t trigger end callback, so just reset button manually
         setTimeout(() => {
             this.readAloudBtn.disabled = false;
             this.readAloudBtn.innerHTML = '<i class="fas fa-volume-up me-2"></i>Read Aloud';
         }, 5000);
     } else {
         const utterance = new SpeechSynthesisUtterance(text);
-        utterance.lang = text.match(/[^\x00-\x7F]/) ? 'hi-IN' : 'en-US';
-        utterance.rate = 0.8;
+        utterance.lang = langCode === 'hi' ? 'hi-IN' : 'en-US';
+        utterance.rate = 0.85;
         utterance.pitch = 1;
         utterance.volume = 1;
 
