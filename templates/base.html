@@ -74,5 +74,17 @@
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
     
     {% block extra_scripts %}{% endblock %}
+
+    <!-- Android TTS Fallback -->
+    <script>
+        if (typeof Android === 'undefined') {
+            window.Android = {
+                speakText: function (text, lang) {
+                    console.warn("Android interface not available. Text-to-Speech skipped.", text, lang);
+                }
+            };
+        }
+    </script>
+
 </body>
 </html>
