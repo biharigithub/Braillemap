@@ -1,4 +1,4 @@
-# ✅ Updated for Python 3.13 compatibility
+# ✅ Compatible with Python 3.13
 setuptools>=65
 wheel
 pip>=23
@@ -7,7 +7,6 @@ Flask==2.2.5
 gunicorn==21.2.0
 pytesseract==0.3.10
 opencv-python-headless==4.7.0.72
-numpy==1.26.4          # Compatible with Python 3.13
+numpy==1.26.4
 Pillow==9.5.0
-gTTS==2.3.0            # ✅ Google TTS fallback for Hindi/English
-edge-tts==6.1.4        # ✅ Optional for fast TTS (works in Render too)
+edge-tts==6.1.4   # ✅ Use edge-tts for TTS (Hindi + English)
