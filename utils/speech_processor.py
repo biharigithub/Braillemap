@@ -1,25 +1,19 @@
-import os
+import edge_tts
 import asyncio
-import edge_tts  # Microsoft Edge TTS library
+import uuid
+import os
 
-# Folder to save audio files
-AUDIO_FOLDER = "static/audio"
-os.makedirs(AUDIO_FOLDER, exist_ok=True)
+OUTPUT_DIR = "static/audio"
+os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-async def generate_tts(text, lang_code, filename):
-    filepath = os.path.join(AUDIO_FOLDER, filename)
-    communicate = edge_tts.Communicate(text, lang_code)
-    await communicate.save(filepath)
-    return filepath
+async def _synthesize(text, voice, file_path):
+    communicate = edge_tts.Communicate(text, voice)
+    await communicate.save(file_path)
 
-def text_to_speech(text, language):
-    """
-    Convert text to speech and return the relative URL of the audio file.
-    Supports English (en-US) and Hindi (hi-IN).
-    """
-    filename = "tts_output.mp3"
-    lang_code = "hi-IN" if language.lower() == "hindi" else "en-US"
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    loop.run_until_complete(generate_tts(text, lang_code, filename))
-    return f"/static/audio/{filename}"
+def synthesize_speech(text, language="english"):
+    filename = f"{uuid.uuid4()}.mp3"
+    file_path = os.path.join(OUTPUT_DIR, filename)
+    voice = "en-IN-NeerjaNeural" if language == "hindi" else "en-US-AriaNeural"
+
+    asyncio.run(_synthesize(text, voice, file_path))
+    return f"/{file_path}"  # Return relative URL for frontend
