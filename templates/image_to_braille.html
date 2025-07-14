@@ -283,16 +283,15 @@ class ImageToBrailleConverter {
         this.mappingDisplay.innerHTML = mappingHtml;
     }
     
- readExtractedText() {
+readExtractedText() {
     const text = this.extractedText.textContent.trim();
     if (!text) return;
 
-    this.synth.cancel();
     const language = this.getSelectedLanguage();
+    const langCode = language === 'hindi' ? 'hi-IN' : 'en-US';
 
-    // ✅ Android WebView support (if Android interface is available)
+    // ✅ Android WebView Native TTS
     if (typeof Android !== 'undefined' && Android.speakText) {
-        const langCode = language === 'hindi' ? 'hi' : 'en';
         Android.speakText(text, langCode);
 
         this.readExtractedBtn.disabled = true;
@@ -301,12 +300,13 @@ class ImageToBrailleConverter {
         setTimeout(() => {
             this.readExtractedBtn.disabled = false;
             this.readExtractedBtn.innerHTML = '<i class="fas fa-volume-up me-2"></i>Read Aloud';
-        }, 5000); // ⏳ Adjust time as needed
-    } else {
-        // ✅ For browser (SpeechSynthesis API)
+        }, 5000);
+
+    } else if ('speechSynthesis' in window) {
+        // ✅ Browser fallback: SpeechSynthesis
         const utterance = new SpeechSynthesisUtterance(text);
-        utterance.lang = language === 'hindi' ? 'hi-IN' : 'en-US';
-        utterance.rate = 0.8;
+        utterance.lang = langCode;
+        utterance.rate = 0.9;
         utterance.pitch = 1;
         utterance.volume = 1;
 
@@ -320,9 +320,12 @@ class ImageToBrailleConverter {
             this.readExtractedBtn.innerHTML = '<i class="fas fa-volume-up me-2"></i>Read Aloud';
         };
 
-        this.synth.speak(utterance);
+        window.speechSynthesis.speak(utterance);
+    } else {
+        alert("Text-to-speech is not supported on this device.");
     }
 }
+
 
     
     showLoading() {
