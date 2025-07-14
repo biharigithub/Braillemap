@@ -1,5 +1,4 @@
 {% extends "base.html" %}
-
 {% block title %}Text to Braille - Braille World{% endblock %}
 
 {% block content %}
@@ -45,23 +44,14 @@
                                     <i class="fas fa-microphone"></i>
                                 </button>
                             </div>
-                            <div class="form-text">
-                                <small class="text-muted">
-                                    <i class="fas fa-info-circle me-1"></i>
-                                    Click the microphone to use voice input
-                                </small>
-                            </div>
                         </div>
-                        
-                        <!-- Voice Status -->
-                        <div id="voiceStatus" class="alert alert-info d-none mb-3">
-                            <i class="fas fa-microphone-alt me-2"></i>
-                            <span id="statusText">Ready to listen...</span>
-                        </div>
-                        
+
                         <!-- Controls -->
                         <div class="text-center mb-4">
-                            <button id="readAloudBtn" class="btn btn-success btn-lg me-2" disabled>
+                            <button id="convertBtn" class="btn btn-success btn-lg me-2">
+                                <i class="fas fa-sync-alt me-2"></i>Convert to Braille
+                            </button>
+                            <button id="readAloudBtn" class="btn btn-outline-success btn-lg" disabled>
                                 <i class="fas fa-volume-up me-2"></i>Read Aloud
                             </button>
                             <button id="clearBtn" class="btn btn-outline-danger btn-lg">
@@ -69,21 +59,32 @@
                             </button>
                         </div>
                         
+                        <!-- Loading Spinner -->
+                        <div id="loadingSpinner" class="text-center d-none mb-4">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Converting...</span>
+                            </div>
+                            <p class="mt-2 text-muted">Converting text to Braille...</p>
+                        </div>
+
                         <!-- Braille Output -->
                         <div class="mb-3">
                             <label class="form-label fw-bold">Braille Output:</label>
                             <div id="brailleOutput" class="braille-display p-3 bg-light rounded border">
-                                <span class="text-muted">
-                                    <i class="fas fa-braille me-2"></i>Braille text will appear here...
-                                </span>
+                                <span class="text-muted">Braille text will appear here...</span>
                             </div>
                         </div>
                         
                         <!-- Character Mapping -->
-                        <div id="characterMapping" class="character-mapping d-none">
+                        <div id="characterMapping" class="d-none">
                             <label class="form-label fw-bold">Character Mapping:</label>
-                            <div id="mappingDisplay" class="mapping-display p-3 bg-light rounded border">
-                            </div>
+                            <div id="mappingDisplay" class="mapping-display p-3 bg-light rounded border"></div>
+                        </div>
+                        
+                        <!-- Error Display -->
+                        <div id="errorDisplay" class="alert alert-danger d-none">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            <span id="errorMessage"></span>
                         </div>
                     </div>
                 </div>
@@ -95,226 +96,121 @@
 
 {% block extra_scripts %}
 <script>
-class TextToBrailleConverter {
-    constructor() {
-        this.textInput = document.getElementById('textInput');
-        this.micButton = document.getElementById('micButton');
-        this.readAloudBtn = document.getElementById('readAloudBtn');
-        this.clearBtn = document.getElementById('clearBtn');
-        this.brailleOutput = document.getElementById('brailleOutput');
-        this.voiceStatus = document.getElementById('voiceStatus');
-        this.statusText = document.getElementById('statusText');
-        this.characterMapping = document.getElementById('characterMapping');
-        this.mappingDisplay = document.getElementById('mappingDisplay');
-        
-        this.recognition = null;
-        this.synth = window.speechSynthesis;
-        this.isListening = false;
-        
-        this.initializeEvents();
-        this.setupSpeechRecognition();
-    }
-    
-    initializeEvents() {
-        this.textInput.addEventListener('input', () => this.convertText());
-        this.micButton.addEventListener('click', () => this.toggleVoiceRecognition());
-        this.readAloudBtn.addEventListener('click', () => this.readAloud());
-        this.clearBtn.addEventListener('click', () => this.clearAll());
-    }
-    
-    setupSpeechRecognition() {
-        if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-            this.recognition = new SpeechRecognition();
-            this.recognition.continuous = false;
-            this.recognition.interimResults = true;
-            this.recognition.lang = 'en-US';
-            
-            this.recognition.onstart = () => {
-                this.isListening = true;
-                this.updateMicButton();
-                this.showVoiceStatus('🎤 Listening... Speak now!');
-            };
-            
-            this.recognition.onresult = (event) => {
-                let finalTranscript = '';
-                let interimTranscript = '';
-                
-                for (let i = event.resultIndex; i < event.results.length; i++) {
-                    const transcript = event.results[i][0].transcript;
-                    if (event.results[i].isFinal) {
-                        finalTranscript += transcript;
-                    } else {
-                        interimTranscript += transcript;
-                    }
-                }
-                
-                if (finalTranscript) {
-                    this.textInput.value = finalTranscript;
-                    this.convertText();
-                    this.showVoiceStatus('✅ Voice recognized!');
-                } else {
-                    this.showVoiceStatus(`🎙️ "${interimTranscript}"`);
-                }
-            };
-            
-            this.recognition.onerror = (event) => {
-                this.isListening = false;
-                this.updateMicButton();
-                this.showVoiceStatus(`❌ Error: ${event.error}`, 'danger');
-                setTimeout(() => this.hideVoiceStatus(), 3000);
-            };
-            
-            this.recognition.onend = () => {
-                this.isListening = false;
-                this.updateMicButton();
-                setTimeout(() => this.hideVoiceStatus(), 2000);
-            };
-        } else {
-            this.micButton.disabled = true;
-            this.micButton.title = 'Voice recognition not supported in this browser';
-        }
-    }
-    
-    toggleVoiceRecognition() {
+document.addEventListener('DOMContentLoaded', () => {
+    const textInput = document.getElementById('textInput');
+    const micButton = document.getElementById('micButton');
+    const convertBtn = document.getElementById('convertBtn');
+    const readAloudBtn = document.getElementById('readAloudBtn');
+    const clearBtn = document.getElementById('clearBtn');
+    const brailleOutput = document.getElementById('brailleOutput');
+    const characterMapping = document.getElementById('characterMapping');
+    const mappingDisplay = document.getElementById('mappingDisplay');
+    const errorDisplay = document.getElementById('errorDisplay');
+    const errorMessage = document.getElementById('errorMessage');
+    const loadingSpinner = document.getElementById('loadingSpinner');
+
+    let recognition = null;
+
+    // Mic button logic
+    micButton.addEventListener('click', () => {
         if (typeof Android !== 'undefined' && Android.recordAndReturnText) {
-            // ✅ Android native mic fallback
             Android.recordAndReturnText();
             return;
         }
 
-        if (!this.recognition) return;
-
-        if (this.isListening) {
-            this.recognition.stop();
-        } else {
-            this.recognition.start();
-        }
-    }
-    
-    updateMicButton() {
-        if (this.isListening) {
-            this.micButton.classList.add('btn-danger');
-            this.micButton.classList.remove('btn-outline-primary');
-            this.micButton.innerHTML = '<i class="fas fa-stop"></i>';
-            this.micButton.title = 'Click to stop listening';
-        } else {
-            this.micButton.classList.remove('btn-danger');
-            this.micButton.classList.add('btn-outline-primary');
-            this.micButton.innerHTML = '<i class="fas fa-microphone"></i>';
-            this.micButton.title = 'Click to start voice recognition';
-        }
-    }
-    
-    showVoiceStatus(message, type = 'info') {
-        this.statusText.textContent = message;
-        this.voiceStatus.className = `alert alert-${type}`;
-        this.voiceStatus.classList.remove('d-none');
-    }
-    
-    hideVoiceStatus() {
-        this.voiceStatus.classList.add('d-none');
-    }
-    
-    async convertText() {
-        const text = this.textInput.value.trim();
-        if (!text) {
-            this.brailleOutput.innerHTML = '<span class="text-muted"><i class="fas fa-braille me-2"></i>Braille text will appear here...</span>';
-            this.readAloudBtn.disabled = true;
-            this.characterMapping.classList.add('d-none');
+        if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
+            alert('Voice recognition not supported in this browser.');
             return;
         }
 
-        try {
-            const response = await fetch('/api/convert-text', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ text, language: 'english' })
-            });
-            
-            const data = await response.json();
-            
-            if (data.success) {
-                this.displayBrailleResult(data.braille_text, data.original_text);
-                this.readAloudBtn.disabled = false;
-            } else {
-                this.showError(data.error || '❌ Failed to convert text');
-            }
-        } catch (error) {
-            console.error('Conversion error:', error);
-            this.showError('❌ Failed to convert text. Please try again.');
-        }
-    }
-    
-    displayBrailleResult(brailleText, originalText) {
-        this.brailleOutput.innerHTML = `<span class="braille-text">${brailleText}</span>`;
-        let mappingHtml = '';
-        for (let i = 0; i < Math.min(originalText.length, brailleText.length); i++) {
-            const char = originalText[i];
-            const braille = brailleText[i];
-            mappingHtml += `
-                <div class="mapping-pair d-inline-block text-center me-3 mb-2">
-                    <div class="braille-char">${braille}</div>
-                    <div class="text-char">${char === ' ' ? '⎵' : char}</div>
-                </div>
-            `;
-        }
-        this.mappingDisplay.innerHTML = mappingHtml;
-        this.characterMapping.classList.remove('d-none');
-    }
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        recognition = new SpeechRecognition();
+        recognition.lang = 'en-US';
+        recognition.interimResults = false;
+        recognition.onresult = (event) => {
+            const transcript = event.results[0][0].transcript;
+            textInput.value = transcript;
+        };
+        recognition.onerror = () => alert('Voice recognition error');
+        recognition.start();
+    });
 
-    readAloud() {
-        const text = this.textInput.value.trim();
+    // Convert button logic
+    convertBtn.addEventListener('click', () => {
+        const text = textInput.value.trim();
+        if (!text) {
+            showError('Please enter some text.');
+            return;
+        }
+
+        loadingSpinner.classList.remove('d-none');
+        fetch('/api/convert-text', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text: text, language: 'english' })
+        })
+        .then(res => res.json())
+        .then(data => {
+            loadingSpinner.classList.add('d-none');
+            if (data.braille_text) {
+                brailleOutput.innerHTML = `<strong>${data.braille_text}</strong>`;
+                mappingDisplay.innerHTML = '';
+                [...data.original_text].forEach((char, i) => {
+                    mappingDisplay.innerHTML += `<div class="d-inline-block text-center me-2">
+                        <div>${data.braille_text[i]}</div>
+                        <small>${char === ' ' ? '⎵' : char}</small>
+                    </div>`;
+                });
+                characterMapping.classList.remove('d-none');
+                readAloudBtn.disabled = false;
+            } else {
+                showError(data.error || 'Conversion failed.');
+            }
+        })
+        .catch(() => {
+            loadingSpinner.classList.add('d-none');
+            showError('Server error. Please try again.');
+        });
+    });
+
+    // Read aloud logic
+    readAloudBtn.addEventListener('click', () => {
+        const text = textInput.value.trim();
         if (!text) return;
 
-        const isAndroid = typeof Android !== 'undefined' && Android.speakText;
-        const langCode = text.match(/[^\x00-\x7F]/) ? 'hi' : 'en'; // Detect Hindi
-
-        if (isAndroid) {
-            Android.speakText(text, langCode);
-            this.readAloudBtn.disabled = true;
-            this.readAloudBtn.innerHTML = '<i class="fas fa-stop me-2"></i>Speaking...';
-            setTimeout(() => {
-                this.readAloudBtn.disabled = false;
-                this.readAloudBtn.innerHTML = '<i class="fas fa-volume-up me-2"></i>Read Aloud';
-            }, 5000);
-        } else if ('speechSynthesis' in window) {
-            const utterance = new SpeechSynthesisUtterance(text);
-            utterance.lang = langCode === 'hi' ? 'hi-IN' : 'en-US';
-            utterance.rate = 0.85;
-            utterance.pitch = 1;
-            utterance.volume = 1;
-            utterance.onstart = () => {
-                this.readAloudBtn.disabled = true;
-                this.readAloudBtn.innerHTML = '<i class="fas fa-stop me-2"></i>Speaking...';
-            };
-            utterance.onend = () => {
-                this.readAloudBtn.disabled = false;
-                this.readAloudBtn.innerHTML = '<i class="fas fa-volume-up me-2"></i>Read Aloud';
-            };
-            this.synth.speak(utterance);
+        if (typeof Android !== 'undefined' && Android.speakText) {
+            Android.speakText(text, 'en');
         } else {
-            alert('❌ Text-to-speech not supported on this device.');
+            fetch('/api/text-to-speech', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text: text, language: 'english' })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.audio_url) {
+                    new Audio(data.audio_url).play();
+                } else {
+                    alert('TTS failed: ' + data.error);
+                }
+            });
         }
-    }
+    });
 
-    clearAll() {
-        this.textInput.value = '';
-        this.brailleOutput.innerHTML = '<span class="text-muted"><i class="fas fa-braille me-2"></i>Braille text will appear here...</span>';
-        this.readAloudBtn.disabled = true;
-        this.characterMapping.classList.add('d-none');
-        this.hideVoiceStatus();
-        this.synth.cancel();
-    }
-    
-    showError(message) {
-        this.brailleOutput.innerHTML = `<span class="text-danger"><i class="fas fa-exclamation-triangle me-2"></i>${message}</span>`;
-    }
-}
+    // Clear all
+    clearBtn.addEventListener('click', () => {
+        textInput.value = '';
+        brailleOutput.innerHTML = '<span class="text-muted">Braille text will appear here...</span>';
+        mappingDisplay.innerHTML = '';
+        characterMapping.classList.add('d-none');
+        readAloudBtn.disabled = true;
+        errorDisplay.classList.add('d-none');
+    });
 
-document.addEventListener('DOMContentLoaded', () => {
-    new TextToBrailleConverter();
+    function showError(msg) {
+        errorMessage.textContent = msg;
+        errorDisplay.classList.remove('d-none');
+    }
 });
-
 </script>
 {% endblock %}
